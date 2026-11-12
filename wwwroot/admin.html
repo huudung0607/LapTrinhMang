@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quản trị - Zalo Chat</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body style="background:#f0f3f8">
+  <div class="admin">
+    <div class="admin-top">
+      <h1>Quản trị tài khoản</h1>
+      <button class="btn" id="logout">Đăng xuất</button>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Tài khoản</th><th>Tên hiển thị</th><th>Trạng thái</th><th>Online</th><th>Đăng ký</th><th>Đăng nhập gần nhất</th><th>Thao tác</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+  <script>
+    const fmt = d => d ? new Date(d).toLocaleString('vi-VN') : '—';
+    const LABEL = { pending: 'Chờ duyệt', active: 'Hoạt động', locked: 'Đã khóa' };
+    const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+
+    async function call(url, method = 'POST') {
+      const r = await fetch(url, { method });
+      if (r.status === 401 || r.status === 403) return location.href = '/';
+      load();
+    }
+
+    async function load() {
+      const r = await fetch('/api/admin/users');
+      if (!r.ok) return location.href = '/';
+      const users = await r.json();
+      const tb = document.getElementById('rows'); tb.replaceChildren();
+      if (!users.length) { const td = el('td', '', 'Chưa có tài khoản nào.'); td.colSpan = 7; tb.append(el('tr')); tb.lastChild.append(td); return; }
+      for (const u of users) {
+        const tr = el('tr');
+        const tag = el('span', 'tag ' + u.status, LABEL[u.status]);
+        const dot = el('span', 'dot' + (u.online ? ' on' : '')); const on = el('span'); on.append(dot, document.createTextNode(u.online ? 'Online' : 'Offline'));
+        const act = el('td', 'act');
+        const btn = (text, fn, cls) => { const b = el('button', cls, text); b.onclick = fn; act.append(b); };
+        if (u.status === 'pending') btn('Duyệt', () => call(`/api/admin/users/${u.id}/approve`));
+        if (u.status === 'active') btn('Khóa', () => call(`/api/admin/users/${u.id}/lock`));
+        if (u.status === 'locked') btn('Mở khóa', () => call(`/api/admin/users/${u.id}/unlock`));
+        btn('Xóa', () => confirm(`Xóa tài khoản "${u.username}" và toàn bộ tin nhắn?`) && call(`/api/admin/users/${u.id}`, 'DELETE'), 'danger');
+        for (const c of [el('td', '', u.username), el('td', '', u.displayName)]) tr.append(c);
+        const t1 = el('td'); t1.append(tag); const t2 = el('td'); t2.append(on);
+        tr.append(t1, t2, el('td', '', fmt(u.createdAt)), el('td', '', fmt(u.lastLoginAt)), act);
+        tb.append(tr);
+      }
+    }
+    document.getElementById('logout').onclick = async () => { await fetch('/api/logout', { method: 'POST' }); location.href = '/'; };
+    load(); setInterval(load, 10000);
+  </script>
+</body>
+</html>

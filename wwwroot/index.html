@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>App Chat</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Đăng nhập / đăng ký -->
+  <main id="auth" class="auth">
+    <form id="authForm" class="auth-card">
+      <h1>App Chat</h1>
+      <p id="authSub">Đăng nhập tài khoản để nhắn tin</p>
+      <input id="fUser" placeholder="Tên đăng nhập" autocomplete="username" required>
+      <input id="fName" placeholder="Tên hiển thị" hidden>
+      <input id="fPass" type="password" placeholder="Mật khẩu" autocomplete="current-password" required>
+      <p id="authMsg" class="auth-msg" role="alert"></p>
+      <button class="btn" id="authBtn">Đăng nhập</button>
+      <button type="button" class="link" id="authSwitch">Chưa có tài khoản? Đăng ký</button>
+    </form>
+  </main>
+
+  <!-- Ứng dụng chat -->
+  <div id="app" class="app" hidden>
+    <nav class="rail">
+      <div class="avatar me" id="meAvatar"></div>
+      <button class="rail-btn active" title="Tin nhắn">💬</button>
+      <button class="rail-btn bottom" id="logout" title="Đăng xuất">⏻</button>
+    </nav>
+
+    <aside class="list" id="list">
+      <div class="list-head"><input id="search" placeholder="Tìm kiếm"></div>
+      <ul id="contacts"></ul>
+    </aside>
+
+    <section class="chat" id="chat">
+      <div class="empty" id="empty">
+        <h2>Chào mừng đến với App Chat</h2>
+        <p>Chọn một người ở danh sách bên trái để bắt đầu trò chuyện.</p>
+      </div>
+      <div class="pane" id="pane" hidden>
+        <header class="chat-head">
+          <button class="back" id="back" aria-label="Quay lại">‹</button>
+          <div class="avatar" id="peerAvatar"></div>
+          <div><strong id="peerName"></strong><small id="peerStatus"></small></div>
+        </header>
+        <div class="msgs" id="msgs"></div>
+        <form class="composer" id="composer">
+          <label class="tool" title="Gửi ảnh">🖼<input type="file" id="imgPick" accept="image/*" hidden></label>
+          <label class="tool" title="Gửi file">📎<input type="file" id="filePick" hidden></label>
+          <input id="text" placeholder="Nhập tin nhắn..." autocomplete="off" maxlength="4000">
+          <button class="send" aria-label="Gửi">Gửi</button>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
