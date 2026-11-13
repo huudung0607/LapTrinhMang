@@ -6,4 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="MongoDB.EntityFrameworkCore" Version="10.0.4" />
+  </ItemGroup>
+
 </Project>
