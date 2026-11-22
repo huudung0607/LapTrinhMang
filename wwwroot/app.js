@@ -59,6 +59,7 @@ async function start(u) {
 
   conn = new signalR.HubConnectionBuilder().withUrl('/chat').withAutomaticReconnect().build();
   conn.on('message', onMessage);
+  conn.on('typing', onTyping);
   conn.on('presence', (id, online) => {
     const c = contacts.find(x => x.id === id);
     if (c) { c.online = online; if (!online) c.lastSeenAt = new Date().toISOString(); renderContacts(); updateHead(); }
@@ -134,10 +135,26 @@ function onMessage(m) {
   if (!c) return loadContacts();
   c.last = { kind: m.kind, text: m.text, fileName: m.fileName, sentAt: m.sentAt, mine: m.fromId === me.id };
   contacts.sort((a, b) => (b.last?.sentAt || '').localeCompare(a.last?.sentAt || ''));
-  if (peer?.id === otherId) { $('msgs').append(bubble(m)); scrollDown(); } else if (m.fromId !== me.id) c.unread = true;
+    if (peer?.id === otherId) {
+        $('msgs').append(bubble(m)); scrollDown();
+        if (m.fromId !== me.id) { clearTimeout(typingTimer); updateHead(); }
+    } else if (m.fromId !== me.id) c.unread = true;
   renderContacts();
 }
+let typingTimer, lastTypingSent = 0;
 
+function onTyping(fromId) {
+    if (peer?.id !== fromId) return;
+    $('peerStatus').textContent = 'đang nhập...';
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(updateHead, 3000);
+}
+
+$('text').addEventListener('input', () => {
+    if (!peer || Date.now() - lastTypingSent < 2000) return;
+    lastTypingSent = Date.now();
+    conn.invoke('Typing', peer.id).catch(() => { });
+});
 const send = (kind, text, url, fileName) => conn.invoke('Send', peer.id, kind, text, url, fileName);
 
 $('composer').onsubmit = async e => {
