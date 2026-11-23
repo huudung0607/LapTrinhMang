@@ -40,4 +40,10 @@ public class ChatHub(appDbContext db, ChatService chat) : Hub
         var m = await chat.SendDirectAsync(ObjectId.Parse(Me), to, kind, text, url, fileName);
         if (m is not null) await Clients.Users(Me, toId).SendAsync("message", m);
     }
+
+    public async Task Typing(string toId)
+    {
+        if (toId == Me || !ObjectId.TryParse(toId, out _)) return;
+        await Clients.User(toId).SendAsync("typing", Me);
+    }
 }
