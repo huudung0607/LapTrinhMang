@@ -1,5 +1,6 @@
 const $ = id => document.getElementById(id);
 const COLORS = ['#0068ff', '#e8590c', '#2f9e44', '#9c36b5', '#d6336c', '#1098ad', '#f08c00'];
+const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '😡'];
 let me, peer, contacts = [], conn, registering = false;
 
 const api = async (url, opts = {}) => {
@@ -60,6 +61,7 @@ async function start(u) {
   conn = new signalR.HubConnectionBuilder().withUrl('/chat').withAutomaticReconnect().build();
   conn.on('message', onMessage);
   conn.on('typing', onTyping);
+  conn.on('reaction', onReaction);
   conn.on('presence', (id, online) => {
     const c = contacts.find(x => x.id === id);
     if (c) { c.online = online; if (!online) c.lastSeenAt = new Date().toISOString(); renderContacts(); updateHead(); }
@@ -123,7 +125,23 @@ function bubble(m) {
     const t = el('div'); t.append(el('b', '', m.fileName || 'file'), el('small', '', 'Nhấn để tải về'));
     a.append(el('span', 'ico', '📄'), t); b.append(a);
   } else b.append(el('span', '', m.text));
+
   b.append(el('time', '', hhmm(m.sentAt)));
+
+  const picker = el('div', 'rx-picker');
+  for (const emo of EMOJIS) {
+    const btn = el('button', 'rx-btn', emo);
+    btn.type = 'button';
+    btn.onclick = e => { e.stopPropagation(); toggleReaction(m.id, emo); };
+    picker.append(btn);
+  }
+  b.append(picker);
+
+  const bar = el('div', 'rx-bar');
+  bar.dataset.mid = m.id;
+  renderReactions(bar, m.reactions || []);
+  b.append(bar);
+
   return b;
 }
 
@@ -135,25 +153,64 @@ function onMessage(m) {
   if (!c) return loadContacts();
   c.last = { kind: m.kind, text: m.text, fileName: m.fileName, sentAt: m.sentAt, mine: m.fromId === me.id };
   contacts.sort((a, b) => (b.last?.sentAt || '').localeCompare(a.last?.sentAt || ''));
-    if (peer?.id === otherId) {
-        $('msgs').append(bubble(m)); scrollDown();
-        if (m.fromId !== me.id) { clearTimeout(typingTimer); updateHead(); }
-    } else if (m.fromId !== me.id) c.unread = true;
+  if (peer?.id === otherId) {
+    $('msgs').append(bubble(m)); scrollDown();
+    if (m.fromId !== me.id) { clearTimeout(typingTimer); updateHead(); }
+  } else if (m.fromId !== me.id) c.unread = true;
   renderContacts();
 }
+
+function renderReactions(bar, list) {
+  bar.replaceChildren();
+  if (!list.length) { bar.hidden = true; return; }
+  bar.hidden = false;
+
+  const grouped = new Map();
+  for (const r of list) {
+    const cur = grouped.get(r.emoji) || { count: 0, mine: false };
+    cur.count += 1;
+    if (r.userId === me.id) cur.mine = true;
+    grouped.set(r.emoji, cur);
+  }
+
+  for (const [emoji, info] of grouped) {
+    const chip = el('button', 'rx-chip' + (info.mine ? ' mine' : ''));
+    chip.type = 'button';
+    chip.append(el('span', '', emoji), el('span', 'rx-cnt', String(info.count)));
+    chip.onclick = e => { e.stopPropagation(); toggleReaction(bar.dataset.mid, emoji); };
+    bar.append(chip);
+  }
+}
+
+async function toggleReaction(messageId, emoji) {
+  if (!peer || !messageId) return;
+  try {
+    const list = await post(`/api/messages/${messageId}/reactions`, { emoji });
+    onReaction(messageId, list);
+    await conn.invoke('React', peer.id, messageId, list).catch(() => {});
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+function onReaction(messageId, list) {
+  const bar = $('msgs').querySelector(`.rx-bar[data-mid="${CSS.escape(messageId)}"]`);
+  if (bar) renderReactions(bar, list || []);
+}
+
 let typingTimer, lastTypingSent = 0;
 
 function onTyping(fromId) {
-    if (peer?.id !== fromId) return;
-    $('peerStatus').textContent = 'đang nhập...';
-    clearTimeout(typingTimer);
-    typingTimer = setTimeout(updateHead, 3000);
+  if (peer?.id !== fromId) return;
+  $('peerStatus').textContent = 'đang nhập...';
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(updateHead, 3000);
 }
 
 $('text').addEventListener('input', () => {
-    if (!peer || Date.now() - lastTypingSent < 2000) return;
-    lastTypingSent = Date.now();
-    conn.invoke('Typing', peer.id).catch(() => { });
+  if (!peer || Date.now() - lastTypingSent < 2000) return;
+  lastTypingSent = Date.now();
+  conn.invoke('Typing', peer.id).catch(() => { });
 });
 const send = (kind, text, url, fileName) => conn.invoke('Send', peer.id, kind, text, url, fileName);
 

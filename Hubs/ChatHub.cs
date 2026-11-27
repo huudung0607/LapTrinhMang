@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using MongoDB.Bson;
 using NetworkProgramming.Data;
 using NetworkProgramming.Services;
+using NetworkProgramming.Views;
 
 namespace NetworkProgramming.Hubs;
 
@@ -45,5 +46,11 @@ public class ChatHub(appDbContext db, ChatService chat) : Hub
     {
         if (toId == Me || !ObjectId.TryParse(toId, out _)) return;
         await Clients.User(toId).SendAsync("typing", Me);
+    }
+
+    public async Task React(string toId, string messageId, List<ReactionView> reactions)
+    {
+        if (!ObjectId.TryParse(toId, out _) || !ObjectId.TryParse(messageId, out _)) return;
+        await Clients.Users(Me, toId).SendAsync("reaction", messageId, reactions);
     }
 }
